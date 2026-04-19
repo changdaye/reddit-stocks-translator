@@ -7,6 +7,8 @@ const {
   restoreProtectedTerms,
   chunkArray,
   makeCacheKey,
+  isSupportedRedditPath,
+  isLikelyUiLabel,
 } = require('../shared.js');
 
 test('normalizeText collapses whitespace', () => {
@@ -18,6 +20,14 @@ test('shouldTranslateText skips empty, tiny, and non-letter strings', () => {
   assert.equal(shouldTranslateText('OK'), false);
   assert.equal(shouldTranslateText('12345'), false);
   assert.equal(shouldTranslateText('TSLA to the moon'), true);
+});
+
+test('shouldTranslateText skips common Reddit UI labels and metadata', () => {
+  assert.equal(shouldTranslateText('12 comments'), false);
+  assert.equal(shouldTranslateText('1d ago'), false);
+  assert.equal(shouldTranslateText('Award'), false);
+  assert.equal(shouldTranslateText('MOD'), false);
+  assert.equal(shouldTranslateText('This company beat revenue expectations'), true);
 });
 
 test('maskProtectedTerms preserves stock tickers, users, and subreddit references', () => {
@@ -34,4 +44,17 @@ test('chunkArray groups values by batch size', () => {
 
 test('makeCacheKey is stable after whitespace normalization', () => {
   assert.equal(makeCacheKey('Hello   world'), makeCacheKey('Hello world'));
+});
+
+test('isSupportedRedditPath matches feed and post pages under r/stocks', () => {
+  assert.equal(isSupportedRedditPath('/r/stocks/'), true);
+  assert.equal(isSupportedRedditPath('/r/stocks/comments/abc123/test-post/'), true);
+  assert.equal(isSupportedRedditPath('/r/investing/'), false);
+  assert.equal(isSupportedRedditPath('/'), false);
+});
+
+test('isLikelyUiLabel detects metadata-style labels', () => {
+  assert.equal(isLikelyUiLabel('2 hr. ago'), true);
+  assert.equal(isLikelyUiLabel('123 upvotes'), true);
+  assert.equal(isLikelyUiLabel('Bullish on NVDA long-term'), false);
 });

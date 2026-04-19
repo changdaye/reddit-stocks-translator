@@ -9,12 +9,47 @@
     return String(text || '').replace(/\s+/g, ' ').trim();
   }
 
+  function isSupportedRedditPath(pathname) {
+    return /^\/r\/stocks(?:\/|$)/.test(String(pathname || ''));
+  }
+
+  function isLikelyUiLabel(text) {
+    const normalized = normalizeText(text).toLowerCase();
+    if (!normalized) return true;
+
+    const exactMatches = new Set([
+      'share',
+      'save',
+      'report',
+      'reply',
+      'award',
+      'awards',
+      'copy link',
+      'mod',
+      'op',
+      'stickied',
+      'more replies',
+      'sort by: best',
+      'best',
+      'new',
+      'top',
+      'hot',
+      'rising',
+    ]);
+
+    if (exactMatches.has(normalized)) return true;
+    if (/^\d+[.,]?\d*\s*(comment|comments|upvote|upvotes|point|points)$/i.test(normalized)) return true;
+    if (/^\d+\s*(m|min|mins|h|hr|hrs|d|day|days|mo|month|months|y|yr|yrs)\.?\s*ago$/i.test(normalized)) return true;
+    if (/^level\s+\d+$/i.test(normalized)) return true;
+    return false;
+  }
+
   function shouldTranslateText(text) {
     const normalized = normalizeText(text);
     if (!normalized) return false;
     if (normalized.length < 4) return false;
     if (/^[\d\W]+$/.test(normalized)) return false;
-    if (/^(share|save|report|reply|award|copy link)$/i.test(normalized)) return false;
+    if (isLikelyUiLabel(normalized)) return false;
     return /[A-Za-z]/.test(normalized);
   }
 
@@ -56,6 +91,8 @@
   return {
     normalizeText,
     shouldTranslateText,
+    isSupportedRedditPath,
+    isLikelyUiLabel,
     makeCacheKey,
     maskProtectedTerms,
     restoreProtectedTerms,
