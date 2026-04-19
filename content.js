@@ -80,13 +80,26 @@
     return Boolean(node.closest('[role="button"], .rt-translation-block'));
   }
 
+  function isLikelyPostLink(element, text) {
+    if (!element || element.tagName?.toLowerCase() !== 'a') return false;
+    const href = element.getAttribute('href') || '';
+    const normalizedText = normalizeText(text || element.innerText || element.textContent || '');
+    if (!normalizedText || normalizedText.length < 12) return false;
+    if (/coderabbit|sign up for a free trial|promoted/i.test(normalizedText)) return false;
+    return /\/r\/stocks\/comments\//.test(href) || /^https?:\/\/(?:www\.)?reddit\.com\/r\/stocks\/comments\//.test(href);
+  }
+
   function findClosestCandidateContainer(node) {
     let current = node instanceof HTMLElement ? node : node?.parentElement;
     while (current && current !== document.body) {
       const tagName = (current.tagName || '').toLowerCase();
+      const text = normalizeText(current.innerText || current.textContent || '');
+      if (tagName === 'a') {
+        return isLikelyPostLink(current, text) ? current : null;
+      }
       if (shouldIgnoreContainerTag(tagName)) return null;
-      if (current.closest('[aria-hidden="true"], button, a, nav, header, footer, aside')) return null;
-      if (isCandidateContainerTag(tagName)) {
+      if (current.closest('[aria-hidden="true"], button, nav, header, footer, aside')) return null;
+      if (isCandidateContainerTag(tagName, { allowLinks: false })) {
         return current;
       }
       current = current.parentElement;
@@ -121,6 +134,8 @@
       if (hasTranslationBlock(node)) return false;
       const text = normalizeText(node.innerText || node.textContent || '');
       if (!shouldTranslateText(text)) return false;
+      if (/^r\/stocks$/i.test(text)) return false;
+      if (/coderabbit|sign up for a free trial|promoted/i.test(text)) return false;
       if (!settings.translateComments && isCommentNode(node)) return false;
       return true;
     });

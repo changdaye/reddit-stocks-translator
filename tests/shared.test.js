@@ -113,3 +113,8 @@ test('shouldIgnoreContainerTag rejects obvious interactive chrome tags', () => {
   assert.equal(shouldIgnoreContainerTag('a'), true);
   assert.equal(shouldIgnoreContainerTag('p'), false);
 });
+
+test('isCandidateContainerTag can allow links when explicitly requested', () => {
+  assert.equal(isCandidateContainerTag('a', { allowLinks: true }), true);
+  assert.equal(isCandidateContainerTag('a', { allowLinks: false }), false);
+});

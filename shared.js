@@ -52,8 +52,11 @@
     ]).has(tag);
   }
 
-  function isCandidateContainerTag(tagName) {
+  function isCandidateContainerTag(tagName, options = {}) {
     const tag = String(tagName || '').toLowerCase();
+    if (tag === 'a') {
+      return Boolean(options.allowLinks);
+    }
     if (shouldIgnoreContainerTag(tag)) return false;
     return new Set(['p', 'h1', 'h2', 'h3', 'h4', 'li', 'blockquote', 'div', 'span']).has(tag);
   }
