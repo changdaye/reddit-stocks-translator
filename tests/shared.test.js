@@ -9,6 +9,7 @@ const {
   makeCacheKey,
   isSupportedRedditPath,
   isLikelyUiLabel,
+  classifyTranslationError,
 } = require('../shared.js');
 
 test('normalizeText collapses whitespace', () => {
@@ -57,4 +58,10 @@ test('isLikelyUiLabel detects metadata-style labels', () => {
   assert.equal(isLikelyUiLabel('2 hr. ago'), true);
   assert.equal(isLikelyUiLabel('123 upvotes'), true);
   assert.equal(isLikelyUiLabel('Bullish on NVDA long-term'), false);
+});
+
+test('classifyTranslationError maps common API failures to user-facing messages', () => {
+  assert.match(classifyTranslationError('Translation request failed: 400 API key not valid. Please pass a valid API key.'), /API Key 无效/);
+  assert.match(classifyTranslationError('Translation request failed: 403 API has not been used in project before or it is disabled.'), /未启用/);
+  assert.match(classifyTranslationError('Failed to fetch'), /网络或跨域/);
 });

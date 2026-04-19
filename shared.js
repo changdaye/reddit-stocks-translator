@@ -57,6 +57,23 @@
     return `v1:${normalizeText(text)}`;
   }
 
+  function classifyTranslationError(errorLike) {
+    const message = String(errorLike || '未知错误');
+    if (/api key not valid|invalid api key/i.test(message)) {
+      return 'Google API Key 无效，请重新检查扩展设置里的 API Key。';
+    }
+    if (/api has not been used|is disabled|permission_denied/i.test(message)) {
+      return 'Google Cloud Translation API 可能未启用，或当前 Key 没有权限。';
+    }
+    if (/referer|ip referer|blocked/i.test(message)) {
+      return '当前 API Key 的限制规则拦截了浏览器请求，请检查 Key 限制。';
+    }
+    if (/failed to fetch|networkerror|load failed/i.test(message)) {
+      return '网络或跨域请求失败，请稍后重试并检查浏览器扩展错误日志。';
+    }
+    return `翻译请求失败：${message}`;
+  }
+
   function maskProtectedTerms(text) {
     const tokens = [];
     let index = 0;
@@ -94,6 +111,7 @@
     isSupportedRedditPath,
     isLikelyUiLabel,
     makeCacheKey,
+    classifyTranslationError,
     maskProtectedTerms,
     restoreProtectedTerms,
     chunkArray,

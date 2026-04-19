@@ -4,6 +4,7 @@
     shouldTranslateText,
     isSupportedRedditPath,
     makeCacheKey,
+    classifyTranslationError,
     maskProtectedTerms,
     restoreProtectedTerms,
     chunkArray,
@@ -18,7 +19,7 @@
 
   const PROCESSED_ATTR = 'data-rtProcessed';
   const TRANSLATION_CLASS = 'rt-translation-block';
-  const NOTICE_ID = 'rt-missing-api-key';
+  const NOTICE_ID = 'rt-status-notice';
   const SELECTORS = [
     'main h1',
     'main h2',
@@ -148,15 +149,21 @@
     element.insertAdjacentElement('afterend', block);
   }
 
-  function showMissingApiKeyNotice() {
-    if (document.getElementById(NOTICE_ID)) return;
+  function showStatusNotice(message) {
     const target = document.querySelector('main');
     if (!target) return;
-    const notice = document.createElement('div');
-    notice.id = NOTICE_ID;
-    notice.className = TRANSLATION_CLASS;
-    notice.textContent = 'Reddit Stocks Translator：请先在扩展设置中填写 Google API Key。';
-    target.prepend(notice);
+    let notice = document.getElementById(NOTICE_ID);
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.id = NOTICE_ID;
+      notice.className = TRANSLATION_CLASS;
+      target.prepend(notice);
+    }
+    notice.textContent = message;
+  }
+
+  function showMissingApiKeyNotice() {
+    showStatusNotice('Reddit Stocks Translator：请先在扩展设置中填写 Google API Key。');
   }
 
   async function processNodes(root = document) {
@@ -205,6 +212,7 @@
         });
       } catch (error) {
         console.error('[Reddit Stocks Translator]', error);
+        showStatusNotice(`Reddit Stocks Translator：${classifyTranslationError(error?.message || error)}`);
       }
     }
 
