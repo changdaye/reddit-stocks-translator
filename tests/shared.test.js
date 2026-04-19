@@ -12,6 +12,8 @@ const {
   classifyTranslationError,
   isSupportedRedditHost,
   isSupportedStocksUrl,
+  createDebugEntry,
+  appendDebugEntry,
 } = require('../shared.js');
 
 test('normalizeText collapses whitespace', () => {
@@ -79,4 +81,19 @@ test('isSupportedStocksUrl requires supported host and /r/stocks path', () => {
   assert.equal(isSupportedStocksUrl('https://www.reddit.com/r/stocks/comments/abc/test'), true);
   assert.equal(isSupportedStocksUrl('https://old.reddit.com/r/stocks/'), false);
   assert.equal(isSupportedStocksUrl('https://reddit.com/r/investing/'), false);
+});
+
+test('createDebugEntry stores structured log payload', () => {
+  const entry = createDebugEntry('info', 'scan.started', { url: 'https://reddit.com/r/stocks/' });
+  assert.equal(entry.level, 'info');
+  assert.equal(entry.event, 'scan.started');
+  assert.equal(entry.context.url, 'https://reddit.com/r/stocks/');
+  assert.ok(entry.timestamp);
+});
+
+test('appendDebugEntry keeps only the newest entries within the limit', () => {
+  const one = createDebugEntry('info', 'one');
+  const two = createDebugEntry('info', 'two');
+  const three = createDebugEntry('info', 'three');
+  assert.deepEqual(appendDebugEntry([one, two], three, 2).map((item) => item.event), ['two', 'three']);
 });

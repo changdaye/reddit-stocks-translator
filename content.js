@@ -5,6 +5,8 @@
     isSupportedStocksUrl,
     makeCacheKey,
     classifyTranslationError,
+    createDebugEntry,
+    appendDebugEntry,
     maskProtectedTerms,
     restoreProtectedTerms,
     chunkArray,
@@ -15,11 +17,13 @@
     autoTranslate: true,
     translateComments: true,
     enableCache: true,
+    debugMode: true,
   };
 
   const PROCESSED_ATTR = 'data-rtProcessed';
   const TRANSLATION_CLASS = 'rt-translation-block';
   const NOTICE_ID = 'rt-status-notice';
+  const LOG_KEY = 'debugLogs';
   const SELECTORS = [
     'main h1',
     'main h2',
@@ -34,6 +38,17 @@
 
   let observer = null;
   let observerTimer = null;
+  let currentSettings = { ...SETTINGS_DEFAULTS };
+
+  function debugLog(level, event, context = {}) {
+    const entry = createDebugEntry(level, event, context);
+    console[level === 'error' ? 'error' : 'log']('[Reddit Stocks Translator]', entry);
+    if (!currentSettings.debugMode) return;
+    chrome.storage.local.get({ [LOG_KEY]: [] }, (result) => {
+      const next = appendDebugEntry(result[LOG_KEY], entry, 200);
+      chrome.storage.local.set({ [LOG_KEY]: next });
+    });
+  }
 
   function isStocksPage() {
     return isSupportedStocksUrl(window.location.href);
@@ -41,7 +56,10 @@
 
   function getSettings() {
     return new Promise((resolve) => {
-      chrome.storage.sync.get(SETTINGS_DEFAULTS, (settings) => resolve(settings));
+      chrome.storage.sync.get(SETTINGS_DEFAULTS, (settings) => {
+        currentSettings = settings;
+        resolve(settings);
+      });
     });
   }
 
@@ -77,7 +95,7 @@
       root.querySelectorAll(selector).forEach((node) => collected.add(node));
     });
 
-    return [...collected].filter((node) => {
+    const nodes = [...collected].filter((node) => {
       if (!(node instanceof HTMLElement)) return false;
       if (isInsideIgnoredContainer(node)) return false;
       if (node.closest('[aria-hidden="true"]')) return false;
@@ -88,6 +106,9 @@
       if (!settings.translateComments && isCommentNode(node)) return false;
       return true;
     });
+
+    debugLog('info', 'scan.candidates', { count: nodes.length, url: window.location.href });
+    return nodes;
   }
 
   function decodeHtmlEntities(text) {
@@ -109,6 +130,8 @@
       format: 'text'
     };
 
+    debugLog('info', 'translate.request', { batchSize: texts.length });
+
     let lastError = null;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
@@ -127,12 +150,14 @@
 
         const data = await response.json();
         const translations = data?.data?.translations || [];
+        debugLog('info', 'translate.success', { batchSize: translations.length });
         return translations.map((item, index) => {
           const decoded = decodeHtmlEntities(item.translatedText || '');
           return restoreProtectedTerms(decoded, maskedEntries[index].tokens);
         });
       } catch (error) {
         lastError = error;
+        debugLog('error', 'translate.attempt_failed', { attempt: attempt + 1, message: String(error?.message || error) });
         await new Promise((resolve) => setTimeout(resolve, 350));
       }
     }
@@ -168,24 +193,38 @@
 
   async function processNodes(root = document) {
     const settings = await getSettings();
+    debugLog('info', 'script.process_start', {
+      url: window.location.href,
+      supportedPage: isStocksPage(),
+      autoTranslate: settings.autoTranslate,
+      translateComments: settings.translateComments,
+      hasApiKey: Boolean(settings.apiKey),
+    });
+
     if (!isStocksPage() || !settings.autoTranslate) return;
     if (!settings.apiKey) {
       showMissingApiKeyNotice();
+      debugLog('warn', 'settings.missing_api_key');
       return;
     }
 
     const nodes = getCandidateNodes(root, settings);
-    if (!nodes.length) return;
+    if (!nodes.length) {
+      debugLog('warn', 'scan.no_candidates', { url: window.location.href });
+      return;
+    }
 
     const cache = settings.enableCache ? await getCache() : {};
     const unresolved = [];
     const pendingByKey = new Map();
+    let cacheHits = 0;
 
     nodes.forEach((node) => {
       const text = normalizeText(node.innerText || node.textContent || '');
       const cacheKey = makeCacheKey(text);
       const translated = cache[cacheKey];
       if (translated) {
+        cacheHits += 1;
         applyTranslation(node, translated);
         return;
       }
@@ -196,6 +235,7 @@
       pendingByKey.get(cacheKey).nodes.push(node);
     });
 
+    debugLog('info', 'cache.summary', { cacheHits, pendingUniqueTexts: pendingByKey.size });
     unresolved.push(...pendingByKey.values());
 
     for (const batch of chunkArray(unresolved, 20)) {
@@ -211,8 +251,10 @@
           item.nodes.forEach((node) => applyTranslation(node, translatedText));
         });
       } catch (error) {
+        const message = classifyTranslationError(error?.message || error);
         console.error('[Reddit Stocks Translator]', error);
-        showStatusNotice(`Reddit Stocks Translator：${classifyTranslationError(error?.message || error)}`);
+        debugLog('error', 'translate.failed', { message });
+        showStatusNotice(`Reddit Stocks Translator：${message}`);
       }
     }
 
@@ -229,7 +271,11 @@
     if (!mutationRoots.length) return;
     clearTimeout(observerTimer);
     observerTimer = setTimeout(() => {
-      mutationRoots.forEach((root) => processNodes(root).catch((error) => console.error(error)));
+      debugLog('info', 'mutation.process', { addedRoots: mutationRoots.length });
+      mutationRoots.forEach((root) => processNodes(root).catch((error) => {
+        debugLog('error', 'mutation.process_failed', { message: String(error?.message || error) });
+        console.error(error);
+      }));
     }, 500);
   }
 
@@ -237,8 +283,13 @@
     if (observer || !document.body) return;
     observer = new MutationObserver(scheduleProcess);
     observer.observe(document.body, { childList: true, subtree: true });
+    debugLog('info', 'observer.started');
   }
 
-  processNodes().catch((error) => console.error(error));
+  debugLog('info', 'script.loaded', { url: window.location.href });
+  processNodes().catch((error) => {
+    debugLog('error', 'script.process_failed', { message: String(error?.message || error) });
+    console.error(error);
+  });
   startObserver();
 })();

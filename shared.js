@@ -73,6 +73,20 @@
     return `翻译请求失败：${message}`;
   }
 
+  function createDebugEntry(level, event, context = {}) {
+    return {
+      timestamp: new Date().toISOString(),
+      level: String(level || 'info'),
+      event: String(event || 'unknown'),
+      context: context && typeof context === 'object' ? context : { value: context },
+    };
+  }
+
+  function appendDebugEntry(entries, entry, limit = 200) {
+    const next = [...(Array.isArray(entries) ? entries : []), entry];
+    return next.slice(Math.max(0, next.length - Math.max(1, limit)));
+  }
+
   function maskProtectedTerms(text) {
     const tokens = [];
     let index = 0;
@@ -113,6 +127,8 @@
     isLikelyUiLabel,
     makeCacheKey,
     classifyTranslationError,
+    createDebugEntry,
+    appendDebugEntry,
     maskProtectedTerms,
     restoreProtectedTerms,
     chunkArray,
