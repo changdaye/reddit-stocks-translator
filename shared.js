@@ -43,6 +43,21 @@
     return false;
   }
 
+  function shouldIgnoreContainerTag(tagName) {
+    const tag = String(tagName || '').toLowerCase();
+    return new Set([
+      'a', 'button', 'nav', 'header', 'footer', 'aside', 'input', 'textarea',
+      'select', 'label', 'svg', 'path', 'img', 'video', 'canvas', 'form',
+      'time', 'script', 'style'
+    ]).has(tag);
+  }
+
+  function isCandidateContainerTag(tagName) {
+    const tag = String(tagName || '').toLowerCase();
+    if (shouldIgnoreContainerTag(tag)) return false;
+    return new Set(['p', 'h1', 'h2', 'h3', 'h4', 'li', 'blockquote', 'div', 'span']).has(tag);
+  }
+
   function shouldTranslateText(text) {
     const normalized = normalizeText(text);
     if (!normalized) return false;
@@ -125,6 +140,8 @@
     isSupportedRedditHost,
     isSupportedStocksUrl,
     isLikelyUiLabel,
+    shouldIgnoreContainerTag,
+    isCandidateContainerTag,
     makeCacheKey,
     classifyTranslationError,
     createDebugEntry,

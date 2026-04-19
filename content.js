@@ -7,6 +7,8 @@
     classifyTranslationError,
     createDebugEntry,
     appendDebugEntry,
+    isCandidateContainerTag,
+    shouldIgnoreContainerTag,
     maskProtectedTerms,
     restoreProtectedTerms,
     chunkArray,
@@ -24,17 +26,6 @@
   const TRANSLATION_CLASS = 'rt-translation-block';
   const NOTICE_ID = 'rt-status-notice';
   const LOG_KEY = 'debugLogs';
-  const SELECTORS = [
-    'main h1',
-    'main h2',
-    'main h3',
-    'main p',
-    'shreddit-comment p',
-    'div[data-testid="comment"] p',
-    'div[slot="comment"]',
-    '[data-testid="post-container"] h3',
-    '[data-testid="post-content"] p'
-  ];
 
   let observer = null;
   let observerTimer = null;
@@ -86,19 +77,46 @@
   }
 
   function isInsideIgnoredContainer(node) {
-    return Boolean(node.closest('button, a, nav, header, footer, aside, [role="button"], .rt-translation-block'));
+    return Boolean(node.closest('[role="button"], .rt-translation-block'));
+  }
+
+  function findClosestCandidateContainer(node) {
+    let current = node instanceof HTMLElement ? node : node?.parentElement;
+    while (current && current !== document.body) {
+      const tagName = (current.tagName || '').toLowerCase();
+      if (shouldIgnoreContainerTag(tagName)) return null;
+      if (current.closest('[aria-hidden="true"], button, a, nav, header, footer, aside')) return null;
+      if (isCandidateContainerTag(tagName)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return null;
   }
 
   function getCandidateNodes(root = document, settings = SETTINGS_DEFAULTS) {
-    const collected = new Set();
-    SELECTORS.forEach((selector) => {
-      root.querySelectorAll(selector).forEach((node) => collected.add(node));
+    const startRoot = root instanceof HTMLElement || root instanceof Document ? root : document;
+    const walker = document.createTreeWalker(startRoot, NodeFilter.SHOW_TEXT, {
+      acceptNode(textNode) {
+        const text = normalizeText(textNode.textContent || '');
+        if (!shouldTranslateText(text)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
     });
+
+    const collected = new Set();
+    let textNode = walker.nextNode();
+    while (textNode) {
+      const container = findClosestCandidateContainer(textNode.parentElement);
+      if (container) {
+        collected.add(container);
+      }
+      textNode = walker.nextNode();
+    }
 
     const nodes = [...collected].filter((node) => {
       if (!(node instanceof HTMLElement)) return false;
       if (isInsideIgnoredContainer(node)) return false;
-      if (node.closest('[aria-hidden="true"]')) return false;
       if (node.hasAttribute(PROCESSED_ATTR)) return false;
       if (hasTranslationBlock(node)) return false;
       const text = normalizeText(node.innerText || node.textContent || '');
@@ -107,7 +125,7 @@
       return true;
     });
 
-    debugLog('info', 'scan.candidates', { count: nodes.length, url: window.location.href });
+    debugLog('info', 'scan.candidates', { count: nodes.length, url: window.location.href, sample: nodes.slice(0, 5).map((node) => normalizeText(node.innerText || node.textContent || '').slice(0, 80)) });
     return nodes;
   }
 

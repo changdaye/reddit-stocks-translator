@@ -14,6 +14,8 @@ const {
   isSupportedStocksUrl,
   createDebugEntry,
   appendDebugEntry,
+  isCandidateContainerTag,
+  shouldIgnoreContainerTag,
 } = require('../shared.js');
 
 test('normalizeText collapses whitespace', () => {
@@ -96,4 +98,18 @@ test('appendDebugEntry keeps only the newest entries within the limit', () => {
   const two = createDebugEntry('info', 'two');
   const three = createDebugEntry('info', 'three');
   assert.deepEqual(appendDebugEntry([one, two], three, 2).map((item) => item.event), ['two', 'three']);
+});
+
+test('isCandidateContainerTag accepts common content tags', () => {
+  assert.equal(isCandidateContainerTag('p'), true);
+  assert.equal(isCandidateContainerTag('h3'), true);
+  assert.equal(isCandidateContainerTag('div'), true);
+  assert.equal(isCandidateContainerTag('button'), false);
+});
+
+test('shouldIgnoreContainerTag rejects obvious interactive chrome tags', () => {
+  assert.equal(shouldIgnoreContainerTag('button'), true);
+  assert.equal(shouldIgnoreContainerTag('nav'), true);
+  assert.equal(shouldIgnoreContainerTag('a'), true);
+  assert.equal(shouldIgnoreContainerTag('p'), false);
 });
