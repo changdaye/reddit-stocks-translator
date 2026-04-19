@@ -2,7 +2,7 @@
   const {
     normalizeText,
     shouldTranslateText,
-    isSupportedRedditPath,
+    isSupportedStocksUrl,
     makeCacheKey,
     classifyTranslationError,
     maskProtectedTerms,
@@ -36,7 +36,7 @@
   let observerTimer = null;
 
   function isStocksPage() {
-    return isSupportedRedditPath(window.location.pathname);
+    return isSupportedStocksUrl(window.location.href);
   }
 
   function getSettings() {

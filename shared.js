@@ -13,28 +13,27 @@
     return /^\/r\/stocks(?:\/|$)/.test(String(pathname || ''));
   }
 
+  function isSupportedRedditHost(hostname) {
+    return /^(?:www\.)?reddit\.com$/i.test(String(hostname || ''));
+  }
+
+  function isSupportedStocksUrl(urlLike) {
+    try {
+      const url = typeof urlLike === 'string' ? new URL(urlLike) : urlLike;
+      return isSupportedRedditHost(url.hostname) && isSupportedRedditPath(url.pathname);
+    } catch {
+      return false;
+    }
+  }
+
   function isLikelyUiLabel(text) {
     const normalized = normalizeText(text).toLowerCase();
     if (!normalized) return true;
 
     const exactMatches = new Set([
-      'share',
-      'save',
-      'report',
-      'reply',
-      'award',
-      'awards',
-      'copy link',
-      'mod',
-      'op',
-      'stickied',
-      'more replies',
-      'sort by: best',
-      'best',
-      'new',
-      'top',
-      'hot',
-      'rising',
+      'share', 'save', 'report', 'reply', 'award', 'awards', 'copy link',
+      'mod', 'op', 'stickied', 'more replies', 'sort by: best', 'best',
+      'new', 'top', 'hot', 'rising',
     ]);
 
     if (exactMatches.has(normalized)) return true;
@@ -109,6 +108,8 @@
     normalizeText,
     shouldTranslateText,
     isSupportedRedditPath,
+    isSupportedRedditHost,
+    isSupportedStocksUrl,
     isLikelyUiLabel,
     makeCacheKey,
     classifyTranslationError,

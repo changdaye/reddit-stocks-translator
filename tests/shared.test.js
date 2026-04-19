@@ -10,6 +10,8 @@ const {
   isSupportedRedditPath,
   isLikelyUiLabel,
   classifyTranslationError,
+  isSupportedRedditHost,
+  isSupportedStocksUrl,
 } = require('../shared.js');
 
 test('normalizeText collapses whitespace', () => {
@@ -64,4 +66,17 @@ test('classifyTranslationError maps common API failures to user-facing messages'
   assert.match(classifyTranslationError('Translation request failed: 400 API key not valid. Please pass a valid API key.'), /API Key 无效/);
   assert.match(classifyTranslationError('Translation request failed: 403 API has not been used in project before or it is disabled.'), /未启用/);
   assert.match(classifyTranslationError('Failed to fetch'), /网络或跨域/);
+});
+
+test('isSupportedRedditHost accepts reddit.com and www.reddit.com', () => {
+  assert.equal(isSupportedRedditHost('reddit.com'), true);
+  assert.equal(isSupportedRedditHost('www.reddit.com'), true);
+  assert.equal(isSupportedRedditHost('old.reddit.com'), false);
+});
+
+test('isSupportedStocksUrl requires supported host and /r/stocks path', () => {
+  assert.equal(isSupportedStocksUrl('https://reddit.com/r/stocks/'), true);
+  assert.equal(isSupportedStocksUrl('https://www.reddit.com/r/stocks/comments/abc/test'), true);
+  assert.equal(isSupportedStocksUrl('https://old.reddit.com/r/stocks/'), false);
+  assert.equal(isSupportedStocksUrl('https://reddit.com/r/investing/'), false);
 });
