@@ -1,54 +1,67 @@
 # reddit-stocks-translator
 
-Self-use Chrome extension for automatically translating Reddit `r/stocks` posts and comments into Chinese with bilingual display.
+A self-use Chrome extension that translates Reddit post-related content into Chinese while keeping the original English visible.
 
-## Current status
-- Chrome Manifest V3 extension scaffold is in place
-- Google Cloud Translation Basic v2 direct API mode is implemented for self-use
-- Reddit feed/post/comment translation flow is implemented as an MVP
-- Shared helper tests are passing locally
+## What it currently does
+- Supports Reddit homepage: `https://www.reddit.com/`
+- Supports subreddit feed pages: `https://www.reddit.com/r/<subreddit>/`
+- Supports post detail pages: `https://www.reddit.com/comments/...` and subreddit comment URLs
+- Translates post-related content only:
+  - post titles
+  - feed/list excerpts
+  - post body content
+  - comments
+- Tries to avoid translating general site chrome such as:
+  - top navigation
+  - buttons
+  - sidebars
+  - utility labels
+  - obvious ads/promoted text
 
-## Repository
-- GitHub: https://github.com/changdaye/reddit-stocks-translator
-- Main implementation branch: `feat/implement-chrome-extension`
+## Visual behavior
+- Original English remains visible
+- Plugin-inserted translation blocks use a light blue background
+- Plugin-inserted translation text is red
+- Inline Chinese text already present inside post-related content is also styled red
 
-## Features
-- Auto-translate on `https://www.reddit.com/r/stocks/`
-- Bilingual display: keep English, append Chinese below
-- Translate post titles, body text, and comments
-- Skip obvious UI labels like `Award`, `12 comments`, `1d ago`
-- Protect common stock/community tokens such as `$AAPL`, `TSLA`, `r/stocks`, `u/name`
-- Cache translations in `chrome.storage.local`
-- Show a page notice when the API key is missing
+## Current architecture
+- **Manifest V3** Chrome extension
+- **Google Cloud Translation Basic v2** direct API usage for self-use
+- **Mixed detection strategy**:
+  - strong signals first (`/comments/` links, post/comment containers, content blocks)
+  - visible-text scanning as fallback
+- **Local cache** in `chrome.storage.local`
+- **Persistent debug logs** visible in the extension options page
 
 ## Project files
 - `manifest.json` — extension metadata and permissions
-- `content.js` — Reddit page scanning, translation requests, DOM injection
-- `shared.js` — shared text filtering and batching helpers
-- `options.html` / `options.js` — settings page and API key storage
-- `styles.css` — bilingual translation styling
+- `content.js` — Reddit scanning, translation requests, DOM injection, inline Chinese styling, debug logging
+- `shared.js` — shared helper logic for URL support, filtering, batching, and debug helpers
+- `options.html` / `options.js` — API key settings and debug log viewer
+- `styles.css` — translation block styles and inline Chinese red text styles
 - `tests/shared.test.js` — helper tests
+- `docs/superpowers/specs/` — design docs
+- `docs/superpowers/plans/` — implementation plans
 
 ## Local development
 
-### 1. Clone the repo
+### Clone the repo
 ```bash
 git clone https://github.com/changdaye/reddit-stocks-translator.git
 cd reddit-stocks-translator
-git checkout feat/implement-chrome-extension
 ```
 
-### 2. Run tests
+### Run tests
 ```bash
 npm test
 ```
 
-Expected result: Node test runner reports all tests passing.
+Expected result: all Node tests pass.
 
-## Chrome local loading steps
+## Load into Chrome
 
-### 1. Open the extensions page
-In Chrome, open:
+### 1. Open extensions page
+Open:
 
 ```text
 chrome://extensions/
@@ -57,97 +70,112 @@ chrome://extensions/
 ### 2. Enable Developer mode
 Turn on the toggle in the top-right corner.
 
-### 3. Load the unpacked extension
+### 3. Load unpacked extension
 Click:
 
 ```text
 Load unpacked
 ```
 
-Then select this project folder:
+Then select:
 
 ```text
 /Users/changdaye/Documents/reddit-stocks-translator
 ```
 
-### 4. Open the extension options page
-After loading, find **Reddit Stocks Translator** and click:
-- `Details`
-- `Extension options`
+### 4. Open extension options
+After loading **Reddit Stocks Translator**:
+- click `Details`
+- click `Extension options`
 
-### 5. Paste your Google API key
+### 5. Configure API key
 In the options page:
 - paste your Google Cloud Translation Basic v2 API key
 - keep `自动翻译` enabled
-- keep `翻译评论` enabled
-- keep `启用本地缓存` enabled
+- keep `翻译评论` enabled if you want comments translated
+- keep `启用本地缓存` enabled for faster repeat loads
+- keep `记录调试日志` enabled while debugging
 - click `保存设置`
 
-## Manual test flow
+## Manual test checklist
 
-### Test case 1: r/stocks feed page
+### Homepage
 Open:
-- https://www.reddit.com/r/stocks/
+- `https://www.reddit.com/`
 
 Expected:
-- post titles begin showing Chinese blocks under English text
-- obvious UI labels are not translated
+- homepage post cards are eligible for translation
+- post-related Chinese text appears in red
+- general site navigation should mostly remain untouched
 
-### Test case 2: post detail page
-Open any post under:
-- `https://www.reddit.com/r/stocks/comments/...`
-
-Expected:
-- title is translated
-- body text is translated
-- comments are translated progressively
-
-### Test case 3: dynamic comments
-Scroll deeper in a busy comment thread.
+### Subreddit feed
+Open:
+- `https://www.reddit.com/r/stocks/`
+- or any other subreddit feed
 
 Expected:
-- newly loaded comments get translated after loading
-- the page remains usable while translations are appended
+- titles and excerpts can be translated
+- plugin translation blocks appear under matched content
 
-### Test case 4: cache behavior
-Refresh the same page after translations were already loaded.
+### Post detail page
+Open any Reddit post page.
 
 Expected:
-- repeated content should appear faster
-- identical text should not trigger redundant network requests as often
+- title translates
+- body content translates
+- comments translate progressively
+
+### Reload behavior
+Refresh a page you already translated.
+
+Expected:
+- cache should reduce repeat work
+- already translated content should appear faster
+
+## Debug logs
+The options page includes a debug log viewer.
+
+Useful events include:
+- `script.loaded`
+- `script.process_start`
+- `scan.candidates`
+- `cache.summary`
+- `translate.request`
+- `translate.success`
+- `translate.failed`
+- `mutation.process`
+
+If translation is not happening, open the options page and inspect the logs first.
 
 ## Troubleshooting
 
-### API key notice appears on the page
-Cause:
-- API key is empty in extension settings
+### Nothing happens on the page
+Check:
+- the extension is enabled
+- you reloaded the unpacked extension after code changes
+- a valid Google API key is saved
+- the current page is a supported Reddit content page
 
+### Page shows a notice about missing API key
 Fix:
 - open extension options
-- paste the Google API key again
-- save settings
-- refresh the Reddit page
+- paste the API key again
+- save
+- refresh Reddit
 
-### No translation appears
-Check:
-- current URL is under `/r/stocks`
-- API key is valid
-- Chrome extension is enabled
-- page was refreshed after saving settings
+### Black inline Chinese appears instead of red
+That usually means the Chinese text was produced by another translation layer (for example Chrome page translation), not by this extension's own styles.
 
-### Reddit layout changed
-This extension currently relies on Reddit DOM selectors. If Reddit changes its page structure, selectors in `content.js` may need updates.
+### Duplicate translations appear
+Reload the latest unpacked extension build. Recent fixes reduce duplicate title/body translation insertion, but Reddit DOM changes may still require more tuning.
 
 ## Security note
-This project is intentionally designed for **personal self-use only**.
+This project is intended for **personal self-use only**.
 
-Because the extension directly calls Google Translation with an API key from the browser:
-- do not publish this build publicly with your real key
-- do not reuse the same key for sensitive production workloads
+Because the browser extension directly calls Google Translation with an API key:
+- do not publish your real API key publicly
+- do not use the same key for sensitive production workloads
 - restrict the key in Google Cloud Console as much as practical
 
-## Next steps
-- improve Reddit selector coverage
-- add a popup UI for quick toggles
-- add better error feedback for invalid API keys
-- optionally package a release zip for local install convenience
+## Repository
+- GitHub: https://github.com/changdaye/reddit-stocks-translator
