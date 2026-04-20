@@ -11,7 +11,13 @@ permissions:
 
 jobs:
   release:
-    if: ${{ github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, '[skip ci]') && !startsWith(github.event.head_commit.message, 'chore(release): bump version to') }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.actor != 'github-actions[bot]' &&
+        !contains(github.event.head_commit.message || '', '[skip ci]') &&
+        !startsWith(github.event.head_commit.message || '', 'chore(release): bump version to')
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
