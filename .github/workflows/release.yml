@@ -44,14 +44,20 @@ jobs:
           VERSION=$(python3 scripts/bump_version.py)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Generate changelog and release notes
+        id: notes
+        run: |
+          NOTES_PATH=$(python3 scripts/generate_release_notes.py)
+          echo "notes_path=$NOTES_PATH" >> "$GITHUB_OUTPUT"
+
       - name: Build release zip
         run: scripts/build_release_zip.sh "${{ steps.bump.outputs.version }}"
 
-      - name: Commit version bump
+      - name: Commit version bump and changelog
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add manifest.json package.json
+          git add manifest.json package.json CHANGELOG.md
           git commit -m "chore(release): bump version to ${{ steps.bump.outputs.version }} [skip ci]"
           git tag -a "v${{ steps.bump.outputs.version }}" -m "Release v${{ steps.bump.outputs.version }}"
           git push origin HEAD:main --follow-tags
@@ -63,4 +69,4 @@ jobs:
           gh release create "v${{ steps.bump.outputs.version }}" \
             "dist/reddit-stocks-translator-v${{ steps.bump.outputs.version }}-chrome-unpacked.zip" \
             --title "v${{ steps.bump.outputs.version }}" \
-            --notes "Automated release for reddit-stocks-translator. Download the zip, unzip it, then load the extracted folder in Chrome via Extensions -> Load unpacked."
+            --notes-file "${{ steps.notes.outputs.notes_path }}"
