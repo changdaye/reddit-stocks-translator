@@ -10,7 +10,8 @@
   }
 
   function isSupportedRedditPath(pathname) {
-    return /^\/r\/stocks(?:\/|$)/.test(String(pathname || ''));
+    const path = String(pathname || '');
+    return path === '/' || /^\/r\/[^/]+(?:\/|$)/.test(path) || /^\/(?:r\/[^/]+\/)?comments\/[A-Za-z0-9]+(?:\/|$)/.test(path);
   }
 
   function isSupportedRedditHost(hostname) {
@@ -33,13 +34,14 @@
     const exactMatches = new Set([
       'share', 'save', 'report', 'reply', 'award', 'awards', 'copy link',
       'mod', 'op', 'stickied', 'more replies', 'sort by: best', 'best',
-      'new', 'top', 'hot', 'rising',
+      'new', 'top', 'hot', 'rising', 'join', 'leave', 'members', 'online'
     ]);
 
     if (exactMatches.has(normalized)) return true;
-    if (/^\d+[.,]?\d*\s*(comment|comments|upvote|upvotes|point|points)$/i.test(normalized)) return true;
+    if (/^\d+[.,]?\d*\s*(comment|comments|upvote|upvotes|point|points|member|members)$/i.test(normalized)) return true;
     if (/^\d+\s*(m|min|mins|h|hr|hrs|d|day|days|mo|month|months|y|yr|yrs)\.?\s*ago$/i.test(normalized)) return true;
     if (/^level\s+\d+$/i.test(normalized)) return true;
+    if (/^r\/[a-z0-9_]+$/i.test(normalized)) return true;
     return false;
   }
 

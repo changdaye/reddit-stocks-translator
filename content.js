@@ -26,6 +26,17 @@
   const TRANSLATION_CLASS = 'rt-translation-block';
   const NOTICE_ID = 'rt-status-notice';
   const LOG_KEY = 'debugLogs';
+  const STRONG_SELECTORS = [
+    'a[href*="/comments/"]',
+    'article h3',
+    'article p',
+    '[data-testid="post-container"] h3',
+    '[data-testid="post-content"] p',
+    '[slot="title"]',
+    '[slot="comment"]',
+    'shreddit-comment p',
+    'div[data-testid="comment"] p'
+  ];
 
   let observer = null;
   let observerTimer = null;
@@ -86,7 +97,18 @@
     const normalizedText = normalizeText(text || element.innerText || element.textContent || '');
     if (!normalizedText || normalizedText.length < 12) return false;
     if (/coderabbit|sign up for a free trial|promoted/i.test(normalizedText)) return false;
-    return /\/r\/stocks\/comments\//.test(href) || /^https?:\/\/(?:www\.)?reddit\.com\/r\/stocks\/comments\//.test(href);
+    return /(?:^|\/)(?:r\/[^/]+\/)?comments\/[A-Za-z0-9]+/i.test(href);
+  }
+
+  function isLikelyBodyContainer(element, text) {
+    if (!(element instanceof HTMLElement)) return false;
+    const normalizedText = normalizeText(text || element.innerText || element.textContent || '');
+    if (!shouldTranslateText(normalizedText)) return false;
+    if (/coderabbit|sign up for a free trial|promoted/i.test(normalizedText)) return false;
+    if (/^r\/[a-z0-9_]+$/i.test(normalizedText)) return false;
+    const tagName = (element.tagName || '').toLowerCase();
+    const classes = String(element.className || '');
+    return tagName === 'p' || tagName === 'blockquote' || tagName === 'li' || /comment|post|content|body/i.test(classes);
   }
 
   function findClosestCandidateContainer(node) {
@@ -99,16 +121,35 @@
       }
       if (shouldIgnoreContainerTag(tagName)) return null;
       if (current.closest('[aria-hidden="true"], button, nav, header, footer, aside')) return null;
-      if (isCandidateContainerTag(tagName, { allowLinks: false })) {
-        return current;
-      }
+      if (isLikelyBodyContainer(current, text)) return current;
+      if (isCandidateContainerTag(tagName, { allowLinks: false })) return current;
       current = current.parentElement;
     }
     return null;
   }
 
+  function getStrongCandidateNodes(root = document, settings = SETTINGS_DEFAULTS) {
+    const startRoot = root instanceof HTMLElement || root instanceof Document ? root : document;
+    const collected = new Set();
+    STRONG_SELECTORS.forEach((selector) => {
+      startRoot.querySelectorAll(selector).forEach((node) => collected.add(node));
+    });
+    return [...collected].filter((node) => {
+      if (!(node instanceof HTMLElement)) return false;
+      const text = normalizeText(node.innerText || node.textContent || '');
+      if (!shouldTranslateText(text)) return false;
+      if (/coderabbit|sign up for a free trial|promoted/i.test(text)) return false;
+      if (/^r\/[a-z0-9_]+$/i.test(text)) return false;
+      if (node.tagName.toLowerCase() === 'a' && !isLikelyPostLink(node, text)) return false;
+      if (!settings.translateComments && isCommentNode(node)) return false;
+      return true;
+    });
+  }
+
   function getCandidateNodes(root = document, settings = SETTINGS_DEFAULTS) {
     const startRoot = root instanceof HTMLElement || root instanceof Document ? root : document;
+    const collected = new Set(getStrongCandidateNodes(startRoot, settings));
+
     const walker = document.createTreeWalker(startRoot, NodeFilter.SHOW_TEXT, {
       acceptNode(textNode) {
         const text = normalizeText(textNode.textContent || '');
@@ -117,7 +158,6 @@
       }
     });
 
-    const collected = new Set();
     let textNode = walker.nextNode();
     while (textNode) {
       const container = findClosestCandidateContainer(textNode.parentElement);
@@ -134,13 +174,18 @@
       if (hasTranslationBlock(node)) return false;
       const text = normalizeText(node.innerText || node.textContent || '');
       if (!shouldTranslateText(text)) return false;
-      if (/^r\/stocks$/i.test(text)) return false;
+      if (/^r\/[a-z0-9_]+$/i.test(text)) return false;
       if (/coderabbit|sign up for a free trial|promoted/i.test(text)) return false;
       if (!settings.translateComments && isCommentNode(node)) return false;
       return true;
     });
 
-    debugLog('info', 'scan.candidates', { count: nodes.length, url: window.location.href, sample: nodes.slice(0, 5).map((node) => normalizeText(node.innerText || node.textContent || '').slice(0, 80)) });
+    debugLog('info', 'scan.candidates', {
+      count: nodes.length,
+      url: window.location.href,
+      strongCount: getStrongCandidateNodes(startRoot, settings).length,
+      sample: nodes.slice(0, 8).map((node) => normalizeText(node.innerText || node.textContent || '').slice(0, 100))
+    });
     return nodes;
   }
 
@@ -170,9 +215,7 @@
       try {
         const response = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(apiKey)}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody)
         });
 

@@ -53,11 +53,13 @@ test('makeCacheKey is stable after whitespace normalization', () => {
   assert.equal(makeCacheKey('Hello   world'), makeCacheKey('Hello world'));
 });
 
-test('isSupportedRedditPath matches feed and post pages under r/stocks', () => {
+test('isSupportedRedditPath matches homepage, subreddit feeds, and post pages', () => {
+  assert.equal(isSupportedRedditPath('/'), true);
   assert.equal(isSupportedRedditPath('/r/stocks/'), true);
+  assert.equal(isSupportedRedditPath('/r/investing/'), true);
   assert.equal(isSupportedRedditPath('/r/stocks/comments/abc123/test-post/'), true);
-  assert.equal(isSupportedRedditPath('/r/investing/'), false);
-  assert.equal(isSupportedRedditPath('/'), false);
+  assert.equal(isSupportedRedditPath('/comments/abc123/test-post/'), true);
+  assert.equal(isSupportedRedditPath('/settings/'), false);
 });
 
 test('isLikelyUiLabel detects metadata-style labels', () => {
@@ -78,18 +80,19 @@ test('isSupportedRedditHost accepts reddit.com and www.reddit.com', () => {
   assert.equal(isSupportedRedditHost('old.reddit.com'), false);
 });
 
-test('isSupportedStocksUrl requires supported host and /r/stocks path', () => {
-  assert.equal(isSupportedStocksUrl('https://reddit.com/r/stocks/'), true);
+test('isSupportedStocksUrl requires supported host and content-like Reddit path', () => {
+  assert.equal(isSupportedStocksUrl('https://reddit.com/'), true);
   assert.equal(isSupportedStocksUrl('https://www.reddit.com/r/stocks/comments/abc/test'), true);
+  assert.equal(isSupportedStocksUrl('https://www.reddit.com/r/investing/'), true);
   assert.equal(isSupportedStocksUrl('https://old.reddit.com/r/stocks/'), false);
-  assert.equal(isSupportedStocksUrl('https://reddit.com/r/investing/'), false);
+  assert.equal(isSupportedStocksUrl('https://reddit.com/settings/'), false);
 });
 
 test('createDebugEntry stores structured log payload', () => {
-  const entry = createDebugEntry('info', 'scan.started', { url: 'https://reddit.com/r/stocks/' });
+  const entry = createDebugEntry('info', 'scan.started', { url: 'https://reddit.com/' });
   assert.equal(entry.level, 'info');
   assert.equal(entry.event, 'scan.started');
-  assert.equal(entry.context.url, 'https://reddit.com/r/stocks/');
+  assert.equal(entry.context.url, 'https://reddit.com/');
   assert.ok(entry.timestamp);
 });
 
