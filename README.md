@@ -161,6 +161,32 @@ Load unpacked
 
 ---
 
+## 自动发版说明
+
+现在仓库已经加入自动 release 流程：
+
+- 每次 `main` 分支有新的更新推送
+- GitHub Actions 会自动把版本号补丁位 `+1`
+- 自动创建新的 git tag，例如 `v0.1.2`、`v0.1.3`
+- 自动打包一个 Chrome 可用的 zip 包
+- 自动创建 GitHub Release 并上传 zip asset
+
+### 产物说明
+Release 中的 zip 包适合这样使用：
+
+1. 下载 zip
+2. 解压
+3. 打开 `chrome://extensions/`
+4. 选择 `Load unpacked`
+5. 选择解压后的目录
+
+### 当前版本策略
+- 仓库中的 `manifest.json` 和 `package.json` 会保持同步
+- 每次主分支更新后，自动执行 **patch 版本递增**
+- 例如：`0.1.1 -> 0.1.2 -> 0.1.3`
+
+---
+
 ## 调试日志
 设置页里带有调试日志查看器。
 
