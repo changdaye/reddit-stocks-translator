@@ -8,6 +8,7 @@
     classifyTranslationError,
     createDebugEntry,
     appendDebugEntry,
+    collectMutationRoots,
     isCandidateContainerTag,
     shouldIgnoreContainerTag,
     maskProtectedTerms,
@@ -47,6 +48,7 @@
 
   let observer = null;
   let observerTimer = null;
+  let scrollTimer = null;
   let currentSettings = { ...SETTINGS_DEFAULTS };
 
   function debugLog(level, event, context = {}) {
@@ -415,15 +417,27 @@
     colorizeInlineChinese(root);
   }
 
-  function scheduleProcess(mutations) {
-    const mutationRoots = mutations
-      .flatMap((mutation) => [...mutation.addedNodes])
-      .filter((node) => node instanceof HTMLElement);
+  function scheduleViewportRescan(reason) {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      debugLog('info', 'viewport.rescan', { reason, url: window.location.href });
+      processNodes(document).catch((error) => {
+        debugLog('error', 'viewport.rescan_failed', { message: String(error?.message || error) });
+        console.error(error);
+      });
+    }, 700);
+  }
 
-    if (!mutationRoots.length) return;
+  function scheduleProcess(mutations) {
+    const mutationRoots = collectMutationRoots(mutations).filter((node) => node instanceof HTMLElement);
+
+    if (!mutationRoots.length) {
+      scheduleViewportRescan('mutation-without-element-root');
+      return;
+    }
     clearTimeout(observerTimer);
     observerTimer = setTimeout(() => {
-      debugLog('info', 'mutation.process', { addedRoots: mutationRoots.length });
+      debugLog('info', 'mutation.process', { roots: mutationRoots.length });
       mutationRoots.forEach((root) => processNodes(root).catch((error) => {
         debugLog('error', 'mutation.process_failed', { message: String(error?.message || error) });
         console.error(error);
@@ -434,7 +448,8 @@
   function startObserver() {
     if (observer || !document.body) return;
     observer = new MutationObserver(scheduleProcess);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    window.addEventListener('scroll', () => scheduleViewportRescan('scroll'), { passive: true });
     debugLog('info', 'observer.started');
   }
 

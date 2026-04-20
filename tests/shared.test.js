@@ -17,6 +17,7 @@ const {
   isCandidateContainerTag,
   shouldIgnoreContainerTag,
   containsChineseCharacters,
+  collectMutationRoots,
 } = require('../shared.js');
 
 test('normalizeText collapses whitespace', () => {
@@ -127,4 +128,25 @@ test('containsChineseCharacters detects inline Chinese text', () => {
   assert.equal(containsChineseCharacters('这是中文'), true);
   assert.equal(containsChineseCharacters('Hello 我好'), true);
   assert.equal(containsChineseCharacters('English only'), false);
+});
+
+test('collectMutationRoots keeps unique element roots from added nodes and text targets', () => {
+  const roots = collectMutationRoots([
+    {
+      addedNodes: [{ nodeType: 1, id: 'post-1' }, { nodeType: 3 }],
+      target: { nodeType: 1, id: 'target-1' },
+      type: 'childList',
+    },
+    {
+      addedNodes: [],
+      target: { nodeType: 3, parentElement: { nodeType: 1, id: 'text-parent' } },
+      type: 'characterData',
+    },
+    {
+      addedNodes: [{ nodeType: 1, id: 'post-1' }],
+      target: { nodeType: 1, id: 'target-1' },
+      type: 'childList',
+    },
+  ]);
+  assert.deepEqual(roots.map((item) => item.id), ['post-1', 'target-1', 'text-parent']);
 });
