@@ -1,0 +1,14 @@
+.rt-translation-block {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-left: 3px solid #5b9cff;
+  background: rgba(91, 156, 255, 0.08);
+  color: #ff3b30;
+  font-size: 0.95em;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.rt-inline-chinese {
+  color: #ff3b30 !important;
+}

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reddit Stocks Translator 设置</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; max-width: 860px; }
+      label { display:block; margin: 12px 0 6px; font-weight: 600; }
+      input[type="text"], input[type="password"] { width: 100%; padding: 10px; box-sizing: border-box; }
+      .row { margin: 14px 0; }
+      .actions { display:flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+      .status { margin-top: 12px; color: #0f5132; }
+      button { padding: 10px 14px; cursor: pointer; }
+      .logs { margin-top: 28px; }
+      pre { background:#111; color:#d7f7d7; padding:16px; border-radius:10px; overflow:auto; max-height:360px; white-space:pre-wrap; }
+      .muted { color:#666; font-size:14px; }
+    </style>
+  </head>
+  <body>
+    <h1>Reddit Stocks Translator</h1>
+    <p>填写 Google Cloud Translation Basic v2 的 API Key，插件会在 Reddit r/stocks 页面自动翻译。</p>
+
+    <label for="apiKey">Google API Key</label>
+    <input id="apiKey" type="password" placeholder="AIza..." />
+
+    <div class="row"><label><input id="autoTranslate" type="checkbox" checked /> 自动翻译</label></div>
+    <div class="row"><label><input id="translateComments" type="checkbox" checked /> 翻译评论</label></div>
+    <div class="row"><label><input id="enableCache" type="checkbox" checked /> 启用本地缓存</label></div>
+    <div class="row"><label><input id="debugMode" type="checkbox" checked /> 记录调试日志</label></div>
+
+    <div class="actions">
+      <button id="saveButton">保存设置</button>
+      <button id="clearCacheButton" type="button">清空缓存</button>
+      <button id="refreshLogsButton" type="button">刷新日志</button>
+      <button id="clearLogsButton" type="button">清空日志</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <section class="logs">
+      <h2>调试日志</h2>
+      <p class="muted">如果页面没有翻译，这里应该能看到脚本是否启动、页面是否匹配、扫描到多少节点、以及 API 请求是否失败。</p>
+      <pre id="logsOutput">暂无日志</pre>
+    </section>
+
+    <script src="options.js"></script>
+  </body>
+</html>

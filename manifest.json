@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Reddit Stocks Translator",
+  "version": "0.1.0",
+  "description": "Auto-translates Reddit r/stocks content into bilingual Chinese/English blocks.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.reddit.com/*",
+    "https://reddit.com/*",
+    "https://translation.googleapis.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.reddit.com/*",
+        "https://reddit.com/*"
+      ],
+      "js": [
+        "shared.js",
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html"
+}
