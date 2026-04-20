@@ -16,6 +16,7 @@ const {
   appendDebugEntry,
   isCandidateContainerTag,
   shouldIgnoreContainerTag,
+  containsChineseCharacters,
 } = require('../shared.js');
 
 test('normalizeText collapses whitespace', () => {
@@ -120,4 +121,10 @@ test('shouldIgnoreContainerTag rejects obvious interactive chrome tags', () => {
 test('isCandidateContainerTag can allow links when explicitly requested', () => {
   assert.equal(isCandidateContainerTag('a', { allowLinks: true }), true);
   assert.equal(isCandidateContainerTag('a', { allowLinks: false }), false);
+});
+
+test('containsChineseCharacters detects inline Chinese text', () => {
+  assert.equal(containsChineseCharacters('这是中文'), true);
+  assert.equal(containsChineseCharacters('Hello 我好'), true);
+  assert.equal(containsChineseCharacters('English only'), false);
 });

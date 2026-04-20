@@ -8,3 +8,7 @@
   line-height: 1.5;
   white-space: pre-wrap;
 }
+
+.rt-inline-chinese {
+  color: #ff3b30 !important;
+}

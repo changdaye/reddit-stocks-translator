@@ -2,6 +2,7 @@
   const {
     normalizeText,
     shouldTranslateText,
+    containsChineseCharacters,
     isSupportedStocksUrl,
     makeCacheKey,
     classifyTranslationError,
@@ -223,6 +224,51 @@
     return textarea.value;
   }
 
+  function shouldColorizeInlineChinese(textNode) {
+    if (!textNode || !textNode.parentElement) return false;
+    const text = textNode.textContent || '';
+    if (!containsChineseCharacters(text)) return false;
+    if (textNode.parentElement.closest('.rt-inline-chinese, .rt-translation-block, nav, header, footer, aside, button, [role="button"]')) {
+      return false;
+    }
+    return Boolean(textNode.parentElement.closest('article, [data-testid="post-container"], [data-testid="post-content"], shreddit-comment, [data-testid="comment"], a[href*="/comments/"], main'));
+  }
+
+  function colorizeInlineChinese(root = document) {
+    const startRoot = root instanceof HTMLElement || root instanceof Document ? root : document;
+    const walker = document.createTreeWalker(startRoot, NodeFilter.SHOW_TEXT, null);
+    const textNodes = [];
+    let current = walker.nextNode();
+    while (current) {
+      textNodes.push(current);
+      current = walker.nextNode();
+    }
+
+    textNodes.forEach((textNode) => {
+      if (!shouldColorizeInlineChinese(textNode)) return;
+      const value = textNode.textContent || '';
+      const pieces = value.split(/([㐀-䶿一-鿿豈-﫿　-〿＀-￯]+)/g);
+      if (pieces.length <= 1) return;
+      const fragment = document.createDocumentFragment();
+      let changed = false;
+      pieces.forEach((piece) => {
+        if (!piece) return;
+        if (containsChineseCharacters(piece)) {
+          const span = document.createElement('span');
+          span.className = 'rt-inline-chinese';
+          span.textContent = piece;
+          fragment.appendChild(span);
+          changed = true;
+        } else {
+          fragment.appendChild(document.createTextNode(piece));
+        }
+      });
+      if (changed) {
+        textNode.parentNode.replaceChild(fragment, textNode);
+      }
+    });
+  }
+
   async function translateBatch(texts, apiKey) {
     const maskedEntries = texts.map((text) => {
       const { maskedText, tokens } = maskProtectedTerms(text);
@@ -306,6 +352,7 @@
     });
 
     if (!isStocksPage() || !settings.autoTranslate) return;
+    colorizeInlineChinese(root);
     if (!settings.apiKey) {
       showMissingApiKeyNotice();
       debugLog('warn', 'settings.missing_api_key');
@@ -365,6 +412,7 @@
     if (settings.enableCache) {
       await setCache(cache);
     }
+    colorizeInlineChinese(root);
   }
 
   function scheduleProcess(mutations) {

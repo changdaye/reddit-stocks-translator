@@ -63,6 +63,10 @@
     return new Set(['p', 'h1', 'h2', 'h3', 'h4', 'li', 'blockquote', 'div', 'span']).has(tag);
   }
 
+  function containsChineseCharacters(text) {
+    return /[㐀-䶿一-鿿豈-﫿]/.test(String(text || ''));
+  }
+
   function shouldTranslateText(text) {
     const normalized = normalizeText(text);
     if (!normalized) return false;
@@ -141,6 +145,7 @@
   return {
     normalizeText,
     shouldTranslateText,
+    containsChineseCharacters,
     isSupportedRedditPath,
     isSupportedRedditHost,
     isSupportedStocksUrl,
