@@ -2,6 +2,13 @@
 
 本文件记录 `reddit-stocks-translator` 的版本更新情况。
 
+## v0.1.3 - 2026-04-20
+
+### 本次更新
+- merge: add Chinese release notes and changelog support
+- fix: make changelog generation idempotent
+- ci: add Chinese release notes and changelog automation
+
 ## v0.1.2 - 2026-04-20
 
 ### 新增
