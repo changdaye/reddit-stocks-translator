@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Reddit Stocks Translator",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Auto-translates Reddit r/stocks content into bilingual Chinese/English blocks.",
   "permissions": [
     "storage"

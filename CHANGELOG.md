@@ -2,6 +2,13 @@
 
 本文件记录 `reddit-stocks-translator` 的版本更新情况。
 
+## v0.1.4 - 2026-04-20
+
+### 本次更新
+- merge: support translating lazy-loaded reddit content
+- fix: rescan lazy-loaded reddit content on scroll and text updates
+- fix: dedupe mutation roots before rescanning
+
 ## v0.1.3 - 2026-04-20
 
 ### 本次更新
