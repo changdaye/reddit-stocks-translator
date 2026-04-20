@@ -111,6 +111,33 @@
     return next.slice(Math.max(0, next.length - Math.max(1, limit)));
   }
 
+  function collectMutationRoots(mutations) {
+    const seenObjects = new Set();
+    const seenKeys = new Set();
+    const roots = [];
+
+    function candidateKey(candidate) {
+      return candidate.id || candidate.getAttribute?.('id') || candidate.className || candidate.tagName || candidate.nodeName || 'node';
+    }
+
+    function pushNode(node) {
+      const candidate = node && node.nodeType === 1 ? node : node?.parentElement;
+      if (!candidate) return;
+      const key = candidateKey(candidate);
+      if (seenObjects.has(candidate) || seenKeys.has(key)) return;
+      seenObjects.add(candidate);
+      seenKeys.add(key);
+      roots.push(candidate);
+    }
+
+    (mutations || []).forEach((mutation) => {
+      (mutation.addedNodes || []).forEach(pushNode);
+      pushNode(mutation.target);
+    });
+
+    return roots;
+  }
+
   function maskProtectedTerms(text) {
     const tokens = [];
     let index = 0;
@@ -156,6 +183,7 @@
     classifyTranslationError,
     createDebugEntry,
     appendDebugEntry,
+    collectMutationRoots,
     maskProtectedTerms,
     restoreProtectedTerms,
     chunkArray,
