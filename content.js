@@ -28,10 +28,16 @@
   const LOG_KEY = 'debugLogs';
   const STRONG_SELECTORS = [
     'a[href*="/comments/"]',
+    'article h1',
+    'article h2',
     'article h3',
     'article p',
+    'article [dir="auto"]',
+    '[data-testid="post-container"] h1',
+    '[data-testid="post-container"] h2',
     '[data-testid="post-container"] h3',
     '[data-testid="post-content"] p',
+    '[data-testid="post-content"] [dir="auto"]',
     '[slot="title"]',
     '[slot="comment"]',
     'shreddit-comment p',
@@ -91,12 +97,25 @@
     return Boolean(node.closest('[role="button"], .rt-translation-block'));
   }
 
+  function findPostContainer(node) {
+    return node?.closest('article, [data-testid="post-container"], shreddit-post, shreddit-comment, [data-testid="comment"]') || null;
+  }
+
+  function isLikelyPostBodyText(text) {
+    const normalized = normalizeText(text);
+    return normalized.length >= 40 && /\s/.test(normalized) && !/^r\/[a-z0-9_]+$/i.test(normalized) && !/coderabbit|sign up for a free trial|promoted/i.test(normalized);
+  }
+
+  function shouldRejectText(text) {
+    return /^r\/[a-z0-9_]+$/i.test(text) || /coderabbit|sign up for a free trial|promoted/i.test(text);
+  }
+
   function isLikelyPostLink(element, text) {
     if (!element || element.tagName?.toLowerCase() !== 'a') return false;
     const href = element.getAttribute('href') || '';
     const normalizedText = normalizeText(text || element.innerText || element.textContent || '');
     if (!normalizedText || normalizedText.length < 12) return false;
-    if (/coderabbit|sign up for a free trial|promoted/i.test(normalizedText)) return false;
+    if (shouldRejectText(normalizedText)) return false;
     return /(?:^|\/)(?:r\/[^/]+\/)?comments\/[A-Za-z0-9]+/i.test(href);
   }
 
@@ -104,11 +123,12 @@
     if (!(element instanceof HTMLElement)) return false;
     const normalizedText = normalizeText(text || element.innerText || element.textContent || '');
     if (!shouldTranslateText(normalizedText)) return false;
-    if (/coderabbit|sign up for a free trial|promoted/i.test(normalizedText)) return false;
-    if (/^r\/[a-z0-9_]+$/i.test(normalizedText)) return false;
+    if (shouldRejectText(normalizedText)) return false;
     const tagName = (element.tagName || '').toLowerCase();
     const classes = String(element.className || '');
-    return tagName === 'p' || tagName === 'blockquote' || tagName === 'li' || /comment|post|content|body/i.test(classes);
+    if (tagName === 'p' || tagName === 'blockquote' || tagName === 'li') return true;
+    if (/comment|post|content|body|md|richtext/i.test(classes) && isLikelyPostBodyText(normalizedText)) return true;
+    return false;
   }
 
   function findClosestCandidateContainer(node) {
@@ -117,12 +137,14 @@
       const tagName = (current.tagName || '').toLowerCase();
       const text = normalizeText(current.innerText || current.textContent || '');
       if (tagName === 'a') {
-        return isLikelyPostLink(current, text) ? current : null;
+        if (isLikelyPostLink(current, text)) return current;
+        current = current.parentElement;
+        continue;
       }
       if (shouldIgnoreContainerTag(tagName)) return null;
       if (current.closest('[aria-hidden="true"], button, nav, header, footer, aside')) return null;
       if (isLikelyBodyContainer(current, text)) return current;
-      if (isCandidateContainerTag(tagName, { allowLinks: false })) return current;
+      if (isCandidateContainerTag(tagName, { allowLinks: false }) && isLikelyPostBodyText(text)) return current;
       current = current.parentElement;
     }
     return null;
@@ -138,9 +160,10 @@
       if (!(node instanceof HTMLElement)) return false;
       const text = normalizeText(node.innerText || node.textContent || '');
       if (!shouldTranslateText(text)) return false;
-      if (/coderabbit|sign up for a free trial|promoted/i.test(text)) return false;
-      if (/^r\/[a-z0-9_]+$/i.test(text)) return false;
-      if (node.tagName.toLowerCase() === 'a' && !isLikelyPostLink(node, text)) return false;
+      if (shouldRejectText(text)) return false;
+      const tagName = node.tagName.toLowerCase();
+      if (tagName === 'a' && !isLikelyPostLink(node, text)) return false;
+      if (tagName !== 'a' && !isLikelyBodyContainer(node, text) && !/^h[1-4]$/.test(tagName)) return false;
       if (!settings.translateComments && isCommentNode(node)) return false;
       return true;
     });
@@ -167,26 +190,31 @@
       textNode = walker.nextNode();
     }
 
-    const nodes = [...collected].filter((node) => {
-      if (!(node instanceof HTMLElement)) return false;
-      if (isInsideIgnoredContainer(node)) return false;
-      if (node.hasAttribute(PROCESSED_ATTR)) return false;
-      if (hasTranslationBlock(node)) return false;
+    const deduped = [];
+    const seen = new Set();
+    for (const node of [...collected]) {
+      if (!(node instanceof HTMLElement)) continue;
+      if (isInsideIgnoredContainer(node)) continue;
+      if (node.hasAttribute(PROCESSED_ATTR)) continue;
+      if (hasTranslationBlock(node)) continue;
       const text = normalizeText(node.innerText || node.textContent || '');
-      if (!shouldTranslateText(text)) return false;
-      if (/^r\/[a-z0-9_]+$/i.test(text)) return false;
-      if (/coderabbit|sign up for a free trial|promoted/i.test(text)) return false;
-      if (!settings.translateComments && isCommentNode(node)) return false;
-      return true;
-    });
+      if (!shouldTranslateText(text)) continue;
+      if (shouldRejectText(text)) continue;
+      if (!settings.translateComments && isCommentNode(node)) continue;
+      const container = findPostContainer(node);
+      const dedupeKey = `${text}::${container ? Array.from(container.parentElement?.children || []).indexOf(container) : 'root'}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      deduped.push(node);
+    }
 
     debugLog('info', 'scan.candidates', {
-      count: nodes.length,
+      count: deduped.length,
       url: window.location.href,
       strongCount: getStrongCandidateNodes(startRoot, settings).length,
-      sample: nodes.slice(0, 8).map((node) => normalizeText(node.innerText || node.textContent || '').slice(0, 100))
+      sample: deduped.slice(0, 8).map((node) => normalizeText(node.innerText || node.textContent || '').slice(0, 100))
     });
-    return nodes;
+    return deduped;
   }
 
   function decodeHtmlEntities(text) {
